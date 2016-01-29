@@ -1,0 +1,209 @@
+---
+title: Human Activity Recognition
+subtitle: "Coursera - Practical Machine Learning"
+output:
+    html_document:
+        keep_md: true
+---
+
+*Report generated `r format(Sys.time(), '%d %B, %Y %H:%M')`*
+
+## Problem description
+
+Here is a video showing the exercise analyzed in this study:
+[D B UNILATERAL CURLS](https://www.youtube.com/watch?v=YxtwA7XRK_g).
+
+## Loading and preprocessing the data
+
+Load required libraries.
+
+```{r}
+library(caret,quietly=TRUE)
+# to print the model correctly on the fist call to print()
+library(randomForest,quietly=TRUE)
+```
+
+Load provided training and testing data, converting all strings to appropiate
+numeric types where possible. Treat empty strings and strings equal to `NA` or
+`#DIV/0!` as NA's.
+
+```{r}
+training <- read.csv('pml-training.csv', stringsAsFactors=FALSE,
+                     na.string=c('NA', '#DIV/0!'))
+training$classe <- factor(training$classe)
+testing <- read.csv('pml-testing.csv', stringsAsFactors=FALSE,
+                     na.string=c('NA', '#DIV/0!'))
+dimTrain <- dim(training)
+dimTest <- dim(testing)
+```
+
+There are `r dimTrain[1]` observations of `r dimTrain[2]` variables in the
+training set. The testing set contains `r dimTest[1]` observations.
+
+The training and testing sets have the same variables, except for the last
+column:
+
+```{r}
+namesDiff <- (names(testing)!=names(training))
+names(testing)[namesDiff]; names(training)[namesDiff]
+```
+
+The last column of the training set is `classe`, the variable we are trying to
+predict. The last column of the testing set is a dummy called `problem_id`.
+
+## Feature selection
+
+In the paper of the study, the autors based their feature selection in a
+correlation analysis (see [Hall]()). Most of the features selected by the
+authors are not available in our testing set (specifically, derived features by
+taking some statistic on the measurements such as mean, variance, maximum or
+minimum).
+
+So in my model I choose simply to use any feature in the training set that is
+available in the testing set, i.e. any feature for which not all observations
+in the testing set are NA's.
+
+We are cheating a bit because we are investigating the testing set, but not to
+inspect the *values* of the variables, just to see what variables are available
+to predict (i.e. which feature columns don't consist of just NA's)
+
+```{r}
+n <- names(training)
+allnas <- sapply(testing, function(c) all(is.na(c)))
+feat <- n[!allnas]
+```
+
+From these features, let's filter out the first seven ones (which contain
+miscellaneous information such as user name and timestamp that are in principle
+irrelevant to the prediction) and the last one, the dummy `problem_id`.
+
+```{r}
+feat <- feat[-c(1:7,length(feat))]
+feat
+```
+
+TODO
+The features selected consist of ...
+
+## Constructing a Random Forest model
+
+I chose a random forest model because of its high prediction accuracy and low
+setup burden. Not all are advantages, however. Random forests are slow to fit
+and difficult to interpret.
+
+Build the formula used for the model. We want to predict `classe` using the
+all the features selected above.
+
+```{r}
+fml <- paste0('classe ~ ', paste0(feat, collapse=' + '), collapse='')
+fml <- as.formula(fml)
+```
+
+Let's try to fit the model using the default configuration (i.e. we do not
+change the `trControl` argument of the `train` function). The default uses 25
+bootstraped resampling iterations. Fitting the random forest model takes
+various hours. I let this run overnight.
+
+```
+modFit <- train(fml,method="rf",data=training)
+```
+
+TODO
+use parallel. Link to article by course student.
+
+Save the model in a format that permits us to reload it quickly, without the
+need to fit it again:
+
+```
+saveRDS(modFit, file='modFit-rf.rds')
+```
+
+We can read the model back with:
+```{r}
+modFit <- readRDS('modFit-rf.rds')
+```
+
+The results achived with this default configuration are quite impressive:
+
+```{r}
+print(modFit$finalModel)
+```
+
+Please refer to the [randomForest package
+documentation](http://cran.r-project.org/web/packages/randomForest/randomForest.pdf)
+for a description of the final model parameters.
+
+The [out-of-bag](http://www.stat.berkeley.edu/~breiman/RandomForests/cc_home.htm#ooberr) estimate of the error rate is 
+
+In the fitting process `r modFit$finalModel$ntree` trees (`ntrees` parameter)
+were created and combined to obtain the final model. In each tree,
+`r modFit$finalModel$mtry` (`mtry` parameter) variables were randomly sampled as
+candidates at each split.
+
+## Making predictions
+
+```{r}
+predTest <- predict(modFit, newdata=testing)
+predTest
+```
+
+This solution passes all the 20 test casses of the Course Project Prediction
+Quiz.
+
+## Model analysis
+
+The 20 most [important
+variables](http://www.stat.berkeley.edu/~breiman/RandomForests/cc_home.htm#varimp)
+of the model:
+
+
+```{r}
+varImp(modFit)
+```
+
+The [Gini
+importance](http://www.stat.berkeley.edu/~breiman/RandomForests/cc_home.htm#giniimp)
+gives an identical order:
+
+```{r}
+gi <- data.frame(modFit$finalModel$importance)
+s.gi <- sort(gi$MeanDecreaseGini, decreasing=T, index.return=T)
+vi <- varImp(modFit)$importance
+s.vi <- sort(vi$Overall, decreasing=T, index.return=T)
+all(rownames(vi)[s.vi$ix] == rownames(gi)[s.gi$ix])
+```
+
+Here is a plot of the 
+
+```{r}
+varImpPlot(modFit$finalModel, main='Gini importance of the model features')
+```
+
+Here is a scatter matrix plot of the 5 most important features of the model:
+
+```{r}
+#library(AppliedPredictiveModeling)
+#transparentTheme(trans = .4)
+
+feat.sorted <- rownames(gi)[s.gi$ix]
+inSample <- createDataPartition(y=training$classe, p=0.03, list=FALSE)
+sample <- training[inSample,] # plot only a small sample of the training set
+myColors<- c("black", "red", "green", "blue", "#ff7f00", "#458b00",
+             "#008b8b", "#0000ff", "#ffff00")
+mySymbol <- list(alpha=rep(.4, 9), col=myColors, cex=rep(0.8, 9),
+                 fill=myColors, font=rep(1, 9), pch=20)
+featurePlot(x=sample[,feat.sorted[1:5]], y=sample$classe, plot="pairs",
+            auto.key=list(columns=5),
+            par.settings=list(superpose.symbol=mySymbol),
+            main='The 5 most important features')
+```
+
+(Credit: [r - How to label more that 7 classes with featurePlot? - Stack
+Overflow](https://stackoverflow.com/questions/29715358/how-to-label-more-that-7-classes-with-featureplot)).
+
+This could be a starting point to guess pairwise relations between two features
+that lead to a certain case of the prediction. For example, class A
+observations (black points) seem to fall in a couple of spots with specific
+values of the `roll_belt` and `pitch_belt` variables.
+
+
