@@ -31,9 +31,9 @@ Refer to the study
 Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative
 Activity Recognition of Weight Lifting Exercises. Proceedings of 4th
 International Conference in Cooperation with SIGCHI (Augmented Human '13) .
-Stuttgart, Germany: ACM SIGCHI, 2013. 
+Stuttgart, Germany: ACM SIGCHI, 2013.
 
-The objective of the assginment is to propose a model, train it with the
+The objective of the assignment is to propose a model, train it with the
 provided training data set and predict the exercise class using the provided
 testing set as input.
 
@@ -73,9 +73,9 @@ from SparkFun Electronics, which measures
 > generating in total 96 derived feature sets.
 
 
-## Feature namimg
+## Feature naming
 
-The namimg convention used for variables containing IMU measurement in the data
+The naming convention used for variables containing IMU measurement in the data
 sets can be expressed informally as follows:
 `stat_(roll|yaw|pitch|accel|gyros|magnet)_(belt|arm|forearm|dumbbell)_(x|y|z)`
 where `stat` is an statistic (`var`, `max`,`min`,`avg`, `kurtosis`, `skewness`,
@@ -94,7 +94,7 @@ library(caret,quietly=TRUE)
 library(randomForest,quietly=TRUE)
 ```
 
-Load provided training and testing data, converting all strings to appropiate
+Load provided training and testing data, converting all strings to appropriate
 numeric types where possible. Treat empty strings and strings equal to `NA` or
 `#DIV/0!` as NA's.
 
@@ -124,7 +124,7 @@ predict. The last column of the testing set is a dummy called `problem_id`.
 
 ## Feature selection
 
-In the paper of the study, the autors based their feature selection in a
+In the paper of the study, the authors based their feature selection in a
 correlation analysis (see
 [Hall](http://www.cs.waikato.ac.nz/~mhall/thesis.pdf)). Most of the features
 selected by the authors are not available in our testing set (specifically,
@@ -196,7 +196,7 @@ We can read the model back with:
 modFit <- readRDS('modFit-rf.rds')
 ```
 
-The results achived with this default configuration are quite impressive:
+The results achieved with this default configuration are quite impressive:
 
 ```{r}
 print(modFit$finalModel)
@@ -207,7 +207,7 @@ documentation](http://cran.r-project.org/web/packages/randomForest/randomForest.
 for a description of the final model parameters.
 
 The [out-of-bag](http://www.stat.berkeley.edu/~breiman/RandomForests/cc_home.htm#ooberr) estimate of the error rate is 0.44%,
-which means that we expect that we can precict the 20 test cases correctly with a probability of
+which means that we expect that we can predict the 20 test cases correctly with a probability of
 
 ```{r}
 ((100-0.44)/100)^20
@@ -225,7 +225,7 @@ predTest <- predict(modFit, newdata=testing)
 predTest
 ```
 
-This solution passes all the 20 test casses of the Course Project Prediction
+This solution passes all the 20 test cases of the Course Project Prediction
 Quiz.
 
 ## Model analysis
