@@ -10,14 +10,85 @@ output:
 
 ## Problem description
 
+This is my solution to the assignment of [Coursera's Practical Machine
+Learning](https://www.coursera.org/learn/practical-machine-learning/)
+which is based on the study
+[Human Activity Recognition](http://groupware.les.inf.puc-rio.br/har).
+
+From the study web site:
+
+> Six young health participants were asked to perform one set of 10 repetitions
+> of the Unilateral Dumbbell Biceps Curl in five different fashions: exactly
+> according to the specification (Class A), throwing the elbows to the front
+> (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell
+> only halfway (Class D) and throwing the hips to the front (Class E).
+
 Here is a video showing the exercise analyzed in this study:
 [D B UNILATERAL CURLS](https://www.youtube.com/watch?v=YxtwA7XRK_g).
+
+Refer to the study
+[paper](http://groupware.les.inf.puc-rio.br/public/papers/2013.Velloso.QAR-WLE.pdf) for details:
+Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative
+Activity Recognition of Weight Lifting Exercises. Proceedings of 4th
+International Conference in Cooperation with SIGCHI (Augmented Human '13) .
+Stuttgart, Germany: ACM SIGCHI, 2013. 
+
+The objective of the assginment is to propose a model, train it with the
+provided training data set and predict the exercise class using the provided
+testing set as input.
+
+## Recorded data
+
+From the study paper:
+
+> For data recording we used four 9 degrees of freedom Razor
+> inertial measurement units (IMU), which provide three-axes
+> acceleration, gyroscope and magnetometer data at a joint
+> sampling rate of 45 Hz.
+
+The device could be similar to this
+[Razor IMU](https://www.sparkfun.com/products/10736)
+from SparkFun Electronics, which measures
+9 degrees of Freedom on a single, flat board:
+- [ITG-3200](https://cdn.sparkfun.com/datasheets/Sensors/Gyros/3-Axis/EB-ITG-3200-00-01.1.pdf)
+  triple-axis digital-output gyroscope
+- [ADXL345](http://www.sparkfun.com/datasheets/Sensors/Accelerometer/ADXL345.pdf)
+  13-bit resolution, ±16g, triple-axis accelerometer
+- [HMC5883L](http://cdn.sparkfun.com/datasheets/Sensors/Magneto/HMC5883L-FDS.pdf)
+  triple-axis, digital magnetometer (Digital Compass)
+
+
+> For feature extraction we used a sliding window approach
+> with different lengths from 0.5 second to 2.5 seconds, with
+> 0.5 second overlap. In each step of the sliding window
+> apprproach we calculated features on the 
+> [Euler angles](https://en.wikipedia.org/wiki/Euler_angles#Alternative_names) 
+> (roll, pitch
+> and yaw), as well as the raw accelerometer, gyroscope and
+> magnetometer readings. For the Euler angles of each of the
+> four sensors we calculated eight features: mean, variance,
+> standard deviation, max, min, amplitude,
+> [kurtosis](https://en.wikipedia.org/wiki/Kurtosis) and
+> [skewness](https://en.wikipedia.org/wiki/Skewness),
+> generating in total 96 derived feature sets.
+
+
+## Feature namimg
+
+The namimg convention used for variables containing IMU measurement in the data
+sets can be expressed informally as follows:
+`stat_(roll|yaw|pitch|accel|gyros|magnet)_(belt|arm|forearm|dumbbell)_(x|y|z)`
+where `stat` is an statistic (`var`, `max`,`min`,`avg`, `kurtosis`, `skewness`,
+etc.) present always for Euler angles and sometimes for `accel` and `magnet`,
+and `x|y|z` is the coordinate name, which is  not present for Euler angles. The
+`(belt|arm|forearm|dumbbell)` part refers to the location of each of the 4
+IMUs.
 
 ## Loading and preprocessing the data
 
 Load required libraries.
 
-```{r}
+```{r, message=F, warning=F}
 library(caret,quietly=TRUE)
 # to print the model correctly on the fist call to print()
 library(randomForest,quietly=TRUE)
@@ -40,8 +111,8 @@ dimTest <- dim(testing)
 There are `r dimTrain[1]` observations of `r dimTrain[2]` variables in the
 training set. The testing set contains `r dimTest[1]` observations.
 
-The training and testing sets have the same variables, except for the last
-column:
+The training and testing sets have the same columns, except for the last
+one:
 
 ```{r}
 namesDiff <- (names(testing)!=names(training))
@@ -54,18 +125,19 @@ predict. The last column of the testing set is a dummy called `problem_id`.
 ## Feature selection
 
 In the paper of the study, the autors based their feature selection in a
-correlation analysis (see [Hall]()). Most of the features selected by the
-authors are not available in our testing set (specifically, derived features by
-taking some statistic on the measurements such as mean, variance, maximum or
-minimum).
+correlation analysis (see
+[Hall](http://www.cs.waikato.ac.nz/~mhall/thesis.pdf)). Most of the features
+selected by the authors are not available in our testing set (specifically,
+derived features by taking some statistic on the measurements such as mean,
+variance, maximum or minimum).
 
 So in my model I choose simply to use any feature in the training set that is
 available in the testing set, i.e. any feature for which not all observations
 in the testing set are NA's.
 
-We are cheating a bit because we are investigating the testing set, but not to
-inspect the *values* of the variables, just to see what variables are available
-to predict (i.e. which feature columns don't consist of just NA's)
+I am cheating a bit because I am investigating the testing set, however not to
+inspect the *values* of the variables, but just to see what variables are
+available to predict (i.e. which feature columns don't consist of just NA's)
 
 ```{r}
 n <- names(training)
@@ -82,17 +154,15 @@ feat <- feat[-c(1:7,length(feat))]
 feat
 ```
 
-TODO
-The features selected consist of ...
-
 ## Constructing a Random Forest model
 
-I chose a random forest model because of its high prediction accuracy and low
-setup burden. Not all are advantages, however. Random forests are slow to fit
-and difficult to interpret.
+I chose a random forest model because the random forest algorithm leads
+frequently to a model with high prediction accuracy and has a low setup burden.
+Not all are advantages, however. Random forests are slow to fit and difficult
+to interpret.
 
-Build the formula used for the model. We want to predict `classe` using the
-all the features selected above.
+Build the formula used for the model. We want to predict `classe` using all the
+features selected above.
 
 ```{r}
 fml <- paste0('classe ~ ', paste0(feat, collapse=' + '), collapse='')
@@ -101,15 +171,18 @@ fml <- as.formula(fml)
 
 Let's try to fit the model using the default configuration (i.e. we do not
 change the `trControl` argument of the `train` function). The default uses 25
-bootstraped resampling iterations. Fitting the random forest model takes
+[bootstraped](https://en.wikipedia.org/wiki/Bootstrapping_%28statistics%29)
+resampling iterations. Fitting the random forest model takes
 various hours. I let this run overnight.
 
 ```
 modFit <- train(fml,method="rf",data=training)
 ```
 
-TODO
-use parallel. Link to article by course student.
+As a future improvement, to speed up the  processing time of the `train()`
+function, we could use the `parallel` package, which is supported by caret. A
+fellow course student has written a great [guide](
+https://github.com/lgreski/datasciencectacontent/blob/master/markdown/pml-randomForestPerformance.md).
 
 Save the model in a format that permits us to reload it quickly, without the
 need to fit it again:
@@ -133,11 +206,16 @@ Please refer to the [randomForest package
 documentation](http://cran.r-project.org/web/packages/randomForest/randomForest.pdf)
 for a description of the final model parameters.
 
-The [out-of-bag](http://www.stat.berkeley.edu/~breiman/RandomForests/cc_home.htm#ooberr) estimate of the error rate is 
+The [out-of-bag](http://www.stat.berkeley.edu/~breiman/RandomForests/cc_home.htm#ooberr) estimate of the error rate is 0.44%,
+which means that we expect that we can precict the 20 test cases correctly with a probability of
+
+```{r}
+((100-0.44)/100)^20
+```
 
 In the fitting process `r modFit$finalModel$ntree` trees (`ntrees` parameter)
 were created and combined to obtain the final model. In each tree,
-`r modFit$finalModel$mtry` (`mtry` parameter) variables were randomly sampled as
+`r modFit$finalModel$mtry` variables (`mtry` parameter) were randomly sampled as
 candidates at each split.
 
 ## Making predictions
@@ -154,8 +232,7 @@ Quiz.
 
 The 20 most [important
 variables](http://www.stat.berkeley.edu/~breiman/RandomForests/cc_home.htm#varimp)
-of the model:
-
+of the model are:
 
 ```{r}
 varImp(modFit)
@@ -173,7 +250,7 @@ s.vi <- sort(vi$Overall, decreasing=T, index.return=T)
 all(rownames(vi)[s.vi$ix] == rownames(gi)[s.gi$ix])
 ```
 
-Here is a plot of the 
+Here is a plot of the features, sorted by their importance:
 
 ```{r}
 varImpPlot(modFit$finalModel, main='Gini importance of the model features')
@@ -182,9 +259,6 @@ varImpPlot(modFit$finalModel, main='Gini importance of the model features')
 Here is a scatter matrix plot of the 5 most important features of the model:
 
 ```{r}
-#library(AppliedPredictiveModeling)
-#transparentTheme(trans = .4)
-
 feat.sorted <- rownames(gi)[s.gi$ix]
 inSample <- createDataPartition(y=training$classe, p=0.03, list=FALSE)
 sample <- training[inSample,] # plot only a small sample of the training set
@@ -205,5 +279,3 @@ This could be a starting point to guess pairwise relations between two features
 that lead to a certain case of the prediction. For example, class A
 observations (black points) seem to fall in a couple of spots with specific
 values of the `roll_belt` and `pitch_belt` variables.
-
-
